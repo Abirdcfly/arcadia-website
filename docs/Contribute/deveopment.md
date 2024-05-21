@@ -3,7 +3,6 @@ sidebar_position: 2
 title: Create an Operator Project
 sidebar_label: Create an Operator Project
 ---
-
 # Create an Operator Project
 
 ## Init a new operator project
@@ -79,4 +78,29 @@ func (r *KnowledgeBaseReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 ```
 
 ### Update helm dependency
-If you update the helm dependency of deploy/charts/arcadia package, you should run ```helm dependency update```, it'll update Chart.lock, or the helm package will fail at build stage.
+
+If you update the helm dependency of deploy/charts/arcadia package, you should run `helm dependency update`, it'll update `Chart.lock`, or the helm package will fail at build stage.
+
+## Update GraphQL
+
+arcadia uses both RESTAPI and GraphQL in apiserver, using RESTAPI for the chat API to talk to the LLM and for uploading files, and GraphQL for Create, Read, Update, and Delete resources.
+
+GraphQL is created as follows:
+
+### Create `.graphqls`
+
+First create a [GraphQL schema](https://graphql.org/learn/schema/) file with the suffix `graphqls` in the [schema](https://github.com/kubeagi/arcadia/blob/main/apiserver/graph/schema) directory.
+
+### Update `.go`
+
+We use the [gqlgen](https://github.com/99designs/gqlgen) project to automatically generate the template go code from the graphqls file, before generating it we need to update the [gqlgen configuration file](https://github.com/kubeagi/arcadia/blob/main/gqlgen.yaml), then execute the command `make gql-gen` and it will automatically generate the template go code in [generated](https://github.com/kubeagi/arcadia/tree/main/apiserver/graph/generated) and[impl](https://github.com/kubeagi/arcadia/tree/main/apiserver/graph/impl) folders. Generally, we need to update the go template file `xxx.resolvers.go` in [impl](https://github.com/kubeagi/arcadia/tree/main/apiserver/graph/impl) folder to add our business logic. In the current project, we do this by adding the `xxx` directory to [pkg](https://github.com/kubeagi/arcadia/tree/main/apiserver/pkg) to write the specific business logic, and the `xxx.resolvers.go` file only references these functions.
+
+At this point, the GraphQL server-side part is complete. The following steps need to be used together with the [yuntijs](https://github.com/yuntijs/bff-sdk-generator) project to facilitate low-code front-end yuntijs auto-generation of SDK for front-end development.
+
+### Create `.gql`
+
+First create a file in the [schema](https://github.com/kubeagi/arcadia/blob/main/apiserver/graph/schema) directory with the suffix `gql`, containing the contents of common query and mutation requests for resources.
+
+### Generate YuntiJS SDK
+
+In development, after the above changes are submitted to the pull request, and after code review, during the code merge process, [GitHub action](https://github.com/kubeagi/arcadia/actions/workflows/build_bff_sdk.yaml) will automatically execute the generation process and push the result to [npm](https://www.npmjs.com/package/@yuntijs/arcadia-bff-sdk), and the front-end can use the SDK by referencing `@yuntijs/arcadia-bff-sdk`. For manual execution, just run `make sdk` in your environment.
